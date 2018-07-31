@@ -570,8 +570,13 @@ func (c *client) QueryAsChunk(q Query) (*ChunkedResponse, error) {
 		return nil, fmt.Errorf("expected json response, got %q, with status: %v and response body: %q", cType, resp.StatusCode, body)
 	}
 
-	cr := NewChunkedResponse(resp.Body)
-	return cr, nil
+	// If we don't have an error in our json response, and didn't get statusOK
+	// then send back an error
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("received status code %d from server", resp.StatusCode)
+	}
+
+	return NewChunkedResponse(resp.Body), nil
 }
 
 // Query sends a command to the server and returns the Response.
