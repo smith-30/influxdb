@@ -78,6 +78,9 @@ type Client interface {
 	// the UDP client.
 	Query(q Query) (*Response, error)
 
+	// Todo Comment
+	QueryAsChunk(q Query) (*ChunkedResponse, error)
+
 	// Close releases any resources a Client may be using.
 	Close() error
 }
@@ -492,6 +495,83 @@ type Result struct {
 	Series   []models.Row
 	Messages []*Message
 	Err      string `json:"error,omitempty"`
+}
+
+func (c *client) QueryAsChunk(q Query) (*ChunkedResponse, error) {
+	if !q.Chunked {
+		return nil, errors.New("not set Chunked option")
+	}
+
+	u := c.url
+	u.Path = path.Join(u.Path, "query")
+
+	jsonParameters, err := json.Marshal(q.Parameters)
+
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "")
+	req.Header.Set("User-Agent", c.useragent)
+
+	if c.username != "" {
+		req.SetBasicAuth(c.username, c.password)
+	}
+
+	params := req.URL.Query()
+	params.Set("q", q.Command)
+	params.Set("db", q.Database)
+	params.Set("params", string(jsonParameters))
+	if q.Chunked {
+		params.Set("chunked", "true")
+		if q.ChunkSize > 0 {
+			params.Set("chunk_size", strconv.Itoa(q.ChunkSize))
+		}
+	}
+
+	if q.Precision != "" {
+		params.Set("epoch", q.Precision)
+	}
+	req.URL.RawQuery = params.Encode()
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// If we lack a X-Influxdb-Version header, then we didn't get a response from influxdb
+	// but instead some other service. If the error code is also a 500+ code, then some
+	// downstream loadbalancer/proxy/etc had an issue and we should report that.
+	if resp.Header.Get("X-Influxdb-Version") == "" && resp.StatusCode >= http.StatusInternalServerError {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil || len(body) == 0 {
+			return nil, fmt.Errorf("received status code %d from downstream server", resp.StatusCode)
+		}
+
+		return nil, fmt.Errorf("received status code %d from downstream server, with response body: %q", resp.StatusCode, body)
+	}
+
+	// If we get an unexpected content type, then it is also not from influx direct and therefore
+	// we want to know what we received and what status code was returned for debugging purposes.
+	if cType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type")); cType != "application/json" {
+		// Read up to 1kb of the body to help identify downstream errors and limit the impact of things
+		// like downstream serving a large file
+		body, err := ioutil.ReadAll(io.LimitReader(resp.Body, 1024))
+		if err != nil || len(body) == 0 {
+			return nil, fmt.Errorf("expected json response, got empty body, with status: %v", resp.StatusCode)
+		}
+
+		return nil, fmt.Errorf("expected json response, got %q, with status: %v and response body: %q", cType, resp.StatusCode, body)
+	}
+
+	cr := NewChunkedResponse(resp.Body)
+	return cr, nil
 }
 
 // Query sends a command to the server and returns the Response.
