@@ -3,7 +3,7 @@ package simple8b_test
 import (
 	"testing"
 
-	"github.com/influxdata/influxdb/pkg/encoding/simple8b"
+	"github.com/smith-30/influxdbpkg/encoding/simple8b"
 )
 
 func Test_Encode_NoValues(t *testing.T) {

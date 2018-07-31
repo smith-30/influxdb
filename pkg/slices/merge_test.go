@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/influxdata/influxdb/pkg/slices"
+	"github.com/smith-30/influxdbpkg/slices"
 )
 
 func TestMergeSortedBytes(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/influxdata/influxdb/pkg/testing/assert"
+	"github.com/smith-30/influxdbpkg/testing/assert"
 )
 
 func TestEncode(t *testing.T) {

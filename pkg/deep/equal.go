@@ -29,7 +29,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Package deep provides a deep equality check for use in tests.
-package deep // import "github.com/influxdata/influxdb/pkg/deep"
+package deep // import "github.com/smith-30/influxdbpkg/deep"
 
 import (
 	"fmt"
