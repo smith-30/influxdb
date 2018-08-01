@@ -79,7 +79,7 @@ type Client interface {
 	Query(q Query) (*Response, error)
 
 	// Todo Comment
-	QueryAsChunk(q Query) (*ChunkedResponse, error)
+	QueryAsChunk(q Query) (*http.Response, error)
 
 	// Close releases any resources a Client may be using.
 	Close() error
@@ -497,7 +497,7 @@ type Result struct {
 	Err      string `json:"error,omitempty"`
 }
 
-func (c *client) QueryAsChunk(q Query) (*ChunkedResponse, error) {
+func (c *client) QueryAsChunk(q Query) (*http.Response, error) {
 	if !q.Chunked {
 		return nil, errors.New("not set Chunked option")
 	}
@@ -543,7 +543,6 @@ func (c *client) QueryAsChunk(q Query) (*ChunkedResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	// If we lack a X-Influxdb-Version header, then we didn't get a response from influxdb
 	// but instead some other service. If the error code is also a 500+ code, then some
@@ -576,7 +575,7 @@ func (c *client) QueryAsChunk(q Query) (*ChunkedResponse, error) {
 		return nil, fmt.Errorf("received status code %d from server", resp.StatusCode)
 	}
 
-	return NewChunkedResponse(resp.Body), nil
+	return resp, nil
 }
 
 // Query sends a command to the server and returns the Response.
